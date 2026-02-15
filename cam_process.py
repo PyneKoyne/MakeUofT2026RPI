@@ -20,30 +20,16 @@ CAPTURE_INTERVAL = 0.4  # Capture every 1 second
 MIN_SEND_INTERVAL = 15.0  # Minimum 10 seconds between API calls
 STABILITY_WINDOW = 3  # Number of stable frames required
 CHANGE_THRESHOLD = 0.3  # 15% change threshold for detecting environment change
-STABILITY_THRESHOLD = 0.04  # 5% threshold for considering scene "stable"
-GEMINI_PROMPT = """Analyze the provided image of this environment. Your task is to act as a world-class music producer and interior designer to determine the perfect musical atmosphere for this specific space.
-
-You must respond ONLY with a valid JSON object. Do not include any conversational filler, markdown code blocks (unless requested), or explanations outside of the JSON.
-
-The JSON must follow this structure:
-{
-  "genre": "string (e.g., 'Lo-fi Jazz', 'Industrial Techno', 'Ambient Neo-Classical')",
-  "tempo": "number (BPM range)",
-  "instruments": ["array of 3-5 specific instruments"],
-  "mood": "string (e.g., 'Sophisticated', 'Cozy', 'Energetic')",
-  "visual_reasoning": "A brief (max 50 characters) explanation of why the lighting, textures, or architecture in the photo led to this musical choice."
-}
-
-Base your analysis on:
-1. Lighting: (e.g., Warm/dim vs. Bright/clinical)
-2. Textures: (e.g., Soft fabrics vs. Hard concrete/glass)
-3. Space: (e.g., Intimate/cramped vs. Vast/echoey)
-4. Activities (e.g. Sports, Studying, Watching Television, etc...)"""
+STABILITY_THRESHOLD = 0.03  # 5% threshold for considering scene "stable"
+num_instruments = 3
 
 # Initialize Gemini
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-2.5-flash')
 
+def change_num_instruments(num):
+    global num_instruments
+    num_instruments = num
 
 class ImageAnalyzer:
     def __init__(self):
@@ -186,6 +172,34 @@ def image_to_base64(image):
 
 def send_to_gemini(image_part):
     """Send image to Gemini API for analysis."""
+    GEMINI_PROMPT = """Analyze the provided image of this environment. Your task is to act as a world-class music producer and interior designer to determine the perfect musical atmosphere for this specific space.
+
+    Here are the Instruments you have to work with:
+        - Percussion: "808 Hip Hop Beat", "Bongos", "Drumline", "Funk Drums", "Glockenspiel", "Marimba", "Nuclear Explosion", "Steel Drum", "Timpani"
+        - Bass: "Bass Clarinet", "Cello", "Didgeridoo", "Tuba", "Upright Bass"
+        - Harmony: "Accordion", "Dirty Synths", "Electric Guitar", "Electric Piano", "Flamenco Guitar", "Guitar", "Harmonica", "Harp", "Harpsichord", "Moog Oscillations", "Ragtime Piano", "Smooth Pianos", "Spacey Synths", "Synth Pads", "Viola Ensemble", "Warm Acoustic Guitar"
+        - Melody: "Alto Saxophone", "Bagpipes", "Clarinet", "Flute", "French Horn", "Piccolo", "Trombone", "Trumpet", "Violin"
+
+    And here are the genres:
+        - Low Intensity: "Lo-Fi Hip Hop", "Bossa Nova", "Chillout", "Indie Folk"
+        - Medium Genres = "Classic Rock", "Disco Funk", "Deep House", "Indie Pop"
+        - High Intensity = "EDM", "Drum & Bass", "Techno", "Trap Beat"
+
+    You must respond ONLY with a valid JSON object with VALID instruments and genres. Do not include any conversational filler, or explanations outside of the JSON.
+
+    The JSON must follow this structure:
+    {
+      "genre": "string (e.g., 'Lo-fi Jazz', 'Industrial Techno', 'Ambient Neo-Classical')",
+      "instruments": ["array of """ + str(num_instruments) + "-" + str(num_instruments + 2) + """ specific instruments"],
+      "visual_reasoning": "A brief (max 50 characters) explanation of why the lighting, textures, or architecture in the photo led to this musical choice."
+    }
+
+    Base your analysis on:
+    1. Lighting: (e.g., Warm/dim vs. Bright/clinical)
+    2. Textures: (e.g., Soft fabrics vs. Hard concrete/glass)
+    3. Space: (e.g., Intimate/cramped vs. Vast/echoey)
+    4. Activities (e.g. Sports, Studying, Watching Television, etc...)"""
+
     try:
         # Send to Gemini
         response = model.generate_content([GEMINI_PROMPT, image_part])
