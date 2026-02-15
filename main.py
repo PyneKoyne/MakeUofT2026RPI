@@ -125,7 +125,6 @@ def process_serial_data():
                         current_sensor_data["gsr"] = serial_line["gsr"]
                     if "temp" in serial_line:
                         current_sensor_data["temp"] = serial_line["temp"]
-                    print(f"[SENSOR] Updated sensor data: {current_sensor_data}")
 
             # Adjust instruments based on GSR value
             try:
