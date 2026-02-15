@@ -190,7 +190,7 @@ def gemini_response_emitter():
             try:
                 response_data = gemini_response_queue.get(timeout=0.5)
                 if sio.connected:
-                    sio.emit('camera_data', response_data)
+                    sio.emit('camera_data', response_data[7:-3])
                     print(f"[API] Emitted Gemini response to backend")
                 else:
                     print(f"[API] Not connected, couldn't emit Gemini response")
