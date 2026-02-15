@@ -158,6 +158,7 @@ def send_data_thread():
     while True:
         try:
             if sio.connected:
+                print("Send_Data_Thread")
                 packet = get_data_packet()
                 print(f"[API] Packet: {str(json.dumps(packet))}")
                 sio.emit("data", str(json.dumps(packet)))
