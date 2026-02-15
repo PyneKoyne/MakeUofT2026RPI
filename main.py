@@ -6,7 +6,7 @@ import threading
 from queue import Empty
 from multiprocessing import Process, Queue as MPQueue
 
-from cam_process import change_num_instruments, main as camera_main, create_shared_num_instruments
+from cam_process import change_num_instruments, main as camera_main, create_shared_num_instruments, create_shared_trigger_capture
 # Import the serial queue from gpio_in
 from gpio_in import serial_queue, start_serial_thread
 
@@ -18,6 +18,14 @@ console_counter = 1
 # Server URL
 SERVER_URL = "https://conanima.pynekoyne.com"
 SOCKET_PATH = "/"
+
+# GSR stability tracking
+GSR_CHANGE_THRESHOLD = 15  # Minimum GSR change to consider "drastic"
+GSR_STABILITY_WINDOW = 5   # Number of readings to check for stability
+GSR_STABILITY_THRESHOLD = 5  # Max variation to consider "stable"
+gsr_history = []
+last_stable_gsr = None
+gsr_change_detected = False
 
 # Shared data state (thread-safe with lock)
 data_lock = threading.Lock()
@@ -34,6 +42,9 @@ camera_running = False
 
 # Shared value for num_instruments (shared between main process and camera subprocess)
 shared_num_instruments = create_shared_num_instruments(3)
+
+# Shared flag to trigger immediate camera capture
+shared_trigger_capture = create_shared_trigger_capture()
 
 # Queue for receiving Gemini responses from camera process
 gemini_response_queue = MPQueue()
@@ -66,7 +77,7 @@ def on_start(data=None):
             # Start the camera process using multiprocessing
             camera_process = Process(
                 target=camera_main,
-                args=(gemini_response_queue, shared_num_instruments),
+                args=(gemini_response_queue, shared_num_instruments, shared_trigger_capture),
                 daemon=True
             )
             camera_process.start()
@@ -110,7 +121,7 @@ def on_stop(data=None):
 
 def process_serial_data():
     """Thread that reads from serial queue and updates sensor data."""
-    global current_sensor_data
+    global current_sensor_data, gsr_history, last_stable_gsr, gsr_change_detected
 
     while True:
         try:
@@ -129,9 +140,11 @@ def process_serial_data():
                     if "temp" in serial_line:
                         current_sensor_data["temp"] = serial_line["temp"]
 
-            # Adjust instruments based on GSR value
+            # Adjust instruments based on GSR value and track stability
             try:
                 gsr_value = int(serial_line["gsr"])
+
+                # Update num_instruments based on GSR
                 old_value = shared_num_instruments.value
                 if gsr_value < 30:
                     shared_num_instruments.value = 2
@@ -143,6 +156,36 @@ def process_serial_data():
                     shared_num_instruments.value = 6
                 if old_value != shared_num_instruments.value:
                     print(f"[SENSOR] GSR={gsr_value}, num_instruments changed: {old_value} -> {shared_num_instruments.value}")
+
+                # Track GSR history for stability detection
+                gsr_history.append(gsr_value)
+                if len(gsr_history) > GSR_STABILITY_WINDOW:
+                    gsr_history.pop(0)
+
+                # Check for drastic change
+                if last_stable_gsr is not None:
+                    gsr_diff = abs(gsr_value - last_stable_gsr)
+                    if gsr_diff >= GSR_CHANGE_THRESHOLD and not gsr_change_detected:
+                        gsr_change_detected = True
+                        print(f"[GSR] Drastic change detected: {last_stable_gsr} -> {gsr_value} (diff={gsr_diff})")
+
+                # Check if GSR has stabilized after a drastic change
+                if gsr_change_detected and len(gsr_history) >= GSR_STABILITY_WINDOW:
+                    gsr_range = max(gsr_history) - min(gsr_history)
+                    if gsr_range <= GSR_STABILITY_THRESHOLD:
+                        # GSR has stabilized, trigger camera capture
+                        print(f"[GSR] Stabilized at ~{gsr_value} (range={gsr_range}). Triggering camera capture!")
+                        shared_trigger_capture.value = 1
+                        gsr_change_detected = False
+                        last_stable_gsr = gsr_value
+
+                # Initialize last_stable_gsr if not set
+                if last_stable_gsr is None and len(gsr_history) >= GSR_STABILITY_WINDOW:
+                    gsr_range = max(gsr_history) - min(gsr_history)
+                    if gsr_range <= GSR_STABILITY_THRESHOLD:
+                        last_stable_gsr = gsr_value
+                        print(f"[GSR] Initial stable value: {last_stable_gsr}")
+
             except (ValueError, IndexError, KeyError) as e:
                 print(f"[SENSOR] Error adjusting instruments: {e}")
 

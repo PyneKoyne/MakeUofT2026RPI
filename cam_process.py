@@ -23,7 +23,7 @@ gemini_response_queue = None  # Will be set by main.py when running as subproces
 
 # Configuration
 CAPTURE_INTERVAL = 0.4  # Capture every 1 second
-MIN_SEND_INTERVAL = 12.0  # Minimum 10 seconds between API calls
+MIN_SEND_INTERVAL = 15.0  # Minimum 10 seconds between API calls
 STABILITY_WINDOW = 3  # Number of stable frames required
 CHANGE_THRESHOLD = 0.3  # 15% change threshold for detecting environment change
 STABILITY_THRESHOLD = 0.025  # 5% threshold for considering scene "stable"
@@ -31,6 +31,9 @@ STABILITY_THRESHOLD = 0.025  # 5% threshold for considering scene "stable"
 # Shared value for num_instruments (will be set by main.py)
 num_instruments_shared = None
 num_instruments_local = 3  # Fallback for standalone mode
+
+# Shared flag for triggering immediate capture (will be set by main.py)
+trigger_capture_shared = None
 
 # Initialize Gemini
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -57,6 +60,10 @@ def change_num_instruments(num):
 def create_shared_num_instruments(initial_value=3):
     """Create a shared Value for num_instruments to be passed to subprocess."""
     return Value(ctypes.c_int, initial_value)
+
+def create_shared_trigger_capture():
+    """Create a shared Value flag for triggering immediate capture."""
+    return Value(ctypes.c_int, 0)
 
 class ImageAnalyzer:
     def __init__(self):
@@ -217,7 +224,7 @@ def send_to_gemini(image_part):
 
     And here are the genres:
         - Low Intensity: "Lo-Fi", "Hip Hop", "Bossa Nova", "Cool Jazz", "Indie Folk"
-        - Medium Genres = "Classic Rock", "Disco Funk", "Deep House", "Indie Pop", "Jazz"
+        - Medium Genres = "Classic Rock", "Disco Funk", "Deep House", "Indie Pop", "Jazz", "Orchestra"
         - High Intensity = "EDM", "Drum & Bass", "Techno", "Trap", "Electro Swing"
     
     You MUST pick at least ONE PERCUSSION instrument and ONE MELODY instrument. You must also pick ONE genre.
@@ -266,14 +273,16 @@ def get_gemini_response():
         print(f"[{timestamp}] Failed to get response from Gemini")
 
 
-def main(response_queue=None, shared_num_instruments=None):
-    global gemini_response_queue, num_instruments_shared
+def main(response_queue=None, shared_num_instruments=None, shared_trigger_capture=None):
+    global gemini_response_queue, num_instruments_shared, trigger_capture_shared
     gemini_response_queue = response_queue
     num_instruments_shared = shared_num_instruments
+    trigger_capture_shared = shared_trigger_capture
 
     print(f"[CAM] main() started with shared_num_instruments={shared_num_instruments}")
     if shared_num_instruments is not None:
         print(f"[CAM] Initial shared value: {shared_num_instruments.value}")
+    print(f"[CAM] trigger_capture_shared={shared_trigger_capture}")
 
     print("Initializing camera...")
 
@@ -313,10 +322,26 @@ def main(response_queue=None, shared_num_instruments=None):
 
             timestamp = datetime.now().strftime("%H:%M:%S")
 
+            # Check if GSR trigger was set (drastic change + stabilized)
+            gsr_triggered = False
+            if trigger_capture_shared is not None and trigger_capture_shared.value == 1:
+                trigger_capture_shared.value = 0  # Reset the trigger
+                gsr_triggered = True
+                print(f"[{timestamp}] GSR trigger detected! Forcing Gemini API call...")
+
             # Process image and check if we should send to API
             should_send, reason = analyzer.process_image(image)
-            if should_send:
-                print(f"[{timestamp}] Frame {frame_count}: Sending to Gemini ({reason})...")
+
+            # Send if normal conditions met OR if GSR triggered
+            if should_send or gsr_triggered:
+                send_reason = "gsr_stabilized" if gsr_triggered else reason
+                print(f"[{timestamp}] Frame {frame_count}: Sending to Gemini ({send_reason})...")
+
+                # Update analyzer state if GSR triggered to prevent duplicate sends
+                if gsr_triggered:
+                    analyzer.last_sent_time = time.time()
+                    analyzer.last_sent_image = analyzer.extract_features(image)
+
                 # Convert image to bytes
                 _, buffer = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 85])
                 image_bytes = buffer.tobytes()
