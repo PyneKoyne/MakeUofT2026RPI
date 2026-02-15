@@ -21,8 +21,8 @@ SOCKET_PATH = "/"
 data_lock = threading.Lock()
 current_sensor_data = {
     "bpm": 0,
-    "value": 0,
-    "last_updated": None
+    "gsr": 0,
+    "temp": 0,
 }
 
 # Camera process control
@@ -113,14 +113,9 @@ def process_serial_data():
             # Parse serial data (adjust parsing based on your ESP32 output format)
             try:
                 # Example: If ESP32 sends "BPM:75" format
-                if "BPM:" in serial_line or "bpm:" in serial_line:
-                    bpm_value = int(serial_line.split(":")[1].strip())
+                global current_sensor_data
+                current_sensor_data = serial_line
 
-                    with data_lock:
-                        current_sensor_data["bpm"] = bpm_value
-                        current_sensor_data["last_updated"] = datetime.now().isoformat()
-
-                    print(f"[SENSOR] BPM updated: {bpm_value}")
                 if "GSR:" in serial_line or "gsr:" in serial_line:
                     gsr_value = int(serial_line.split(":")[1].strip())
                     if gsr_value < 15:
@@ -133,14 +128,6 @@ def process_serial_data():
                         change_num_instruments(5)
                     else:
                         change_num_instruments(6)
-
-                else:
-                    # Generic parsing: try to extract first number
-                    numbers = re.findall(r'\d+', serial_line)
-                    if numbers:
-                        with data_lock:
-                            current_sensor_data["value"] = int(numbers[0])
-                            current_sensor_data["last_updated"] = datetime.now().isoformat()
             except (ValueError, IndexError) as e:
                 print(f"[SENSOR] Error parsing serial data '{serial_line}': {e}")
 
@@ -175,7 +162,7 @@ def send_data_thread():
             if sio.connected:
                 packet = get_data_packet()
                 sio.emit("data", packet)
-                print(f"[API] Sent: BPM={packet['data']['bpm']}")
+                print(f"[API] Sent: {str(packet)}")
             time.sleep(interval)
         except Exception as e:
             print(f"[API] Error sending data: {e}")

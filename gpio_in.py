@@ -1,4 +1,5 @@
 import serial
+import json
 import threading
 from queue import Queue
 
@@ -15,7 +16,7 @@ def read_serial_data():
 
         while True:
             if ser.in_waiting > 0:
-                line = ser.readline().decode('utf-8').rstrip()
+                line = json.loads(ser.readline().decode('utf-8').rstrip())
                 if line:
                     serial_queue.put(line)
                     print(f"[GPIO] Received: {line}")
