@@ -3,8 +3,6 @@ import json
 import socketio
 import time
 import threading
-import re
-from datetime import datetime
 from queue import Empty
 from multiprocessing import Process, Queue as MPQueue
 
@@ -107,32 +105,42 @@ def on_stop(data=None):
 
 def process_serial_data():
     """Thread that reads from serial queue and updates sensor data."""
+    global current_sensor_data
+
     while True:
         try:
             # Non-blocking read from serial queue
             serial_line = serial_queue.get(timeout=1)
-            print(str(serial_line))
+            print(f"[SENSOR] Received: {serial_line}")
 
-            # Parse serial data (adjust parsing based on your ESP32 output format)
+            # Update current_sensor_data with the received data
+            # serial_line is already a dict from gpio_in.py (json.loads)
+            with data_lock:
+                if isinstance(serial_line, dict):
+                    # Update only the keys that exist in the incoming data
+                    if "bpm" in serial_line:
+                        current_sensor_data["bpm"] = serial_line["bpm"]
+                    if "gsr" in serial_line:
+                        current_sensor_data["gsr"] = serial_line["gsr"]
+                    if "temp" in serial_line:
+                        current_sensor_data["temp"] = serial_line["temp"]
+                    print(f"[SENSOR] Updated sensor data: {current_sensor_data}")
+
+            # Adjust instruments based on GSR value
             try:
-                # Example: If ESP32 sends "BPM:75" format
-                global current_sensor_data
-                current_sensor_data = serial_line
-
-                if "GSR:" in serial_line or "gsr:" in serial_line:
-                    gsr_value = int(serial_line.split(":")[1].strip())
-                    if gsr_value < 15:
-                        change_num_instruments(1)
-                    elif gsr_value < 30:
-                        change_num_instruments(2)
-                    elif gsr_value < 50:
-                        change_num_instruments(3)
-                    elif gsr_value < 85:
-                        change_num_instruments(5)
-                    else:
-                        change_num_instruments(6)
+                gsr_value = current_sensor_data.get("gsr", 0)
+                if gsr_value < 15:
+                    change_num_instruments(1)
+                elif gsr_value < 30:
+                    change_num_instruments(2)
+                elif gsr_value < 50:
+                    change_num_instruments(3)
+                elif gsr_value < 85:
+                    change_num_instruments(5)
+                else:
+                    change_num_instruments(6)
             except (ValueError, IndexError) as e:
-                print(f"[SENSOR] Error parsing serial data '{serial_line}': {e}")
+                print(f"[SENSOR] Error adjusting instruments: {e}")
 
         except Empty:
             # Queue is empty, continue waiting
