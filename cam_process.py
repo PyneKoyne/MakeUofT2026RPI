@@ -180,7 +180,7 @@ def send_to_gemini(image_part):
     GEMINI_PROMPT = """Analyze the provided image of this environment. Your task is to act as a world-class music producer and interior designer to determine the perfect musical atmosphere for this specific space.
 
     Here are the Instruments you have to work with:
-        - Percussion: "808 Hip Hop Beat", "Bongos", "Drumline", "Drum set", "Explosions", "Steel Drum", "Timpani"
+        - Percussion: "808 Hip Hop Beat", "Bongos", "Drumline", "Drum Set", "Explosions", "Steel Drum", "Timpani"
         - Bass: "Bass Clarinet", "Cello", "Didgeridoo", "Tuba", "Upright Bass"
         - Harmony: "Accordion", "Dirty Synths", "Electric Guitar", "Electric Piano", "Flamenco Guitar", "Guitar", "Harmonica", "Harp", "Harpsichord", "Moog Oscillations", "Smooth Pianos", "Spacey Synths", "Synth Pads", "Viola Ensemble", "Warm Acoustic Guitar"
         - Melody: "Alto Saxophone", "Bagpipes", "Clarinet", "Flute", "French Horn", "Piccolo", "Trombone", "Trumpet", "Violin", "Piano", "Whistling", "Glockenspiel", "Marimba",
