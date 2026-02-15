@@ -14,11 +14,11 @@ import threading
 load_dotenv()
 
 # Configuration
-CAPTURE_INTERVAL = 0.5  # Capture every 1 second
+CAPTURE_INTERVAL = 0.4  # Capture every 1 second
 MIN_SEND_INTERVAL = 15.0  # Minimum 10 seconds between API calls
 STABILITY_WINDOW = 3  # Number of stable frames required
-CHANGE_THRESHOLD = 0.15  # 15% change threshold for detecting environment change
-STABILITY_THRESHOLD = 0.05  # 5% threshold for considering scene "stable"
+CHANGE_THRESHOLD = 0.3  # 15% change threshold for detecting environment change
+STABILITY_THRESHOLD = 0.1  # 5% threshold for considering scene "stable"
 GEMINI_PROMPT = """Analyze the provided image of this environment. Your task is to act as a world-class music producer and interior designer to determine the perfect musical atmosphere for this specific space.
 
 You must respond ONLY with a valid JSON object. Do not include any conversational filler, markdown code blocks (unless requested), or explanations outside of the JSON.
@@ -251,8 +251,8 @@ def main():
             should_send, reason = analyzer.process_image(image)
             if should_send:
                 print(f"[{timestamp}] Frame {frame_count}: Sending to Gemini ({reason})...")
-                threading.Thread(target=get_gemini_response(timestamp, image), daemon=True)
-
+                response_thread = threading.Thread(target=get_gemini_response(timestamp, image), daemon=True)
+                response_thread.start()
             else:
                 status = "change detected, waiting for stability" if analyzer.change_detected else "monitoring"
                 print(f"[{timestamp}] Frame {frame_count}: {status}")
