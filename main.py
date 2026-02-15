@@ -111,7 +111,6 @@ def process_serial_data():
         try:
             # Non-blocking read from serial queue
             serial_line = serial_queue.get(timeout=1)
-            print(f"[SENSOR] Received: {serial_line}")
 
             # Update current_sensor_data with the received data
             # serial_line is already a dict from gpio_in.py (json.loads)
