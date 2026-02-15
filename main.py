@@ -147,7 +147,9 @@ def get_data_packet():
 
     return {
         "data": {
-            sensor_data
+            "bpm": sensor_data["bpm"],
+            "gsr": sensor_data["gsr"],
+            "temp": sensor_data["temp"],
         }
     }
 
@@ -156,13 +158,16 @@ def send_data_thread():
     interval = 0.1  # 100ms = 10 times per second
     
     while True:
-        if sio.connected:
-            print("Send_Data_Thread")
-            packet = get_data_packet()
-            print(f"[API] Packet: {str(json.dumps(packet))}")
-            sio.emit("data", str(json.dumps(packet)))
-        time.sleep(interval)
-
+        try:
+            if sio.connected:
+                print("Send_Data_Thread")
+                packet = get_data_packet()
+                print(f"[API] Packet: {str(json.dumps(packet))}")
+                sio.emit("data", str(json.dumps(packet)))
+            time.sleep(interval)
+        except Exception as e:
+            print(f"[API] Error sending data: {e}")
+            time.sleep(interval)
 
 def gemini_response_emitter():
     """Thread that monitors Gemini response queue and emits to backend."""
