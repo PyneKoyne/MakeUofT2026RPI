@@ -10,7 +10,7 @@ def read_serial_data():
     """Continuously read data from ESP32 and put it in the queue."""
     ser = None
     try:
-        ser = serial.Serial('/dev/serial0', 9600, timeout=3)
+        ser = serial.Serial('/dev/serial0', 115200, timeout=3)
         ser.reset_input_buffer()
         print("Serial connection established with ESP32")
 

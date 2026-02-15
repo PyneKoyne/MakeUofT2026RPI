@@ -171,7 +171,7 @@ def send_data_thread():
             if sio.connected:
                 packet = get_data_packet()
                 print(f"[API] Packet: {str(json.dumps(packet))}")
-                sio.emit("data", str(json.dumps(packet)))
+                sio.emit("receiveBioPacket", str(json.dumps(packet)))
             time.sleep(interval)
         except Exception as e:
             print(f"[API] Error sending data: {e}")
@@ -185,7 +185,7 @@ def gemini_response_emitter():
             try:
                 response_data = gemini_response_queue.get(timeout=0.5)
                 if sio.connected:
-                    sio.emit('gemini_response', response_data)
+                    sio.emit('camera_data', response_data)
                     print(f"[API] Emitted Gemini response to backend")
                 else:
                     print(f"[API] Not connected, couldn't emit Gemini response")
