@@ -9,19 +9,37 @@ from collections import deque
 from picamera2 import Picamera2
 import cv2
 import google.generativeai as genai
+import threading
 
 load_dotenv()
 
 # Configuration
-CAPTURE_INTERVAL = 5.0  # Capture every 1 second
+CAPTURE_INTERVAL = 1.0  # Capture every 1 second
 MIN_SEND_INTERVAL = 10.0  # Minimum 10 seconds between API calls
 STABILITY_WINDOW = 3  # Number of stable frames required
 CHANGE_THRESHOLD = 0.15  # 15% change threshold for detecting environment change
 STABILITY_THRESHOLD = 0.05  # 5% threshold for considering scene "stable"
+GEMINI_PROMPT = """Analyze the provided image of this environment. Your task is to act as a world-class music producer and interior designer to determine the perfect musical atmosphere for this specific space.
+
+You must respond ONLY with a valid JSON object. Do not include any conversational filler, markdown code blocks (unless requested), or explanations outside of the JSON.
+
+The JSON must follow this structure:
+{
+  "genre": "string (e.g., 'Lo-fi Jazz', 'Industrial Techno', 'Ambient Neo-Classical')",
+  "tempo": "number (BPM range)",
+  "instruments": ["array of 3-5 specific instruments"],
+  "mood": "string (e.g., 'Sophisticated', 'Cozy', 'Energetic')",
+  "visual_reasoning": "A brief explanation of why the lighting, textures, or architecture in the photo led to this musical choice."
+}
+
+Base your analysis on:
+1. Lighting: (e.g., Warm/dim vs. Bright/clinical)
+2. Textures: (e.g., Soft fabrics vs. Hard concrete/glass)
+3. Space: (e.g., Intimate/cramped vs. Vast/echoey)"""
 
 # Initialize Gemini
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-2.5-flash')
 
 class ImageAnalyzer:
     def __init__(self):
@@ -41,9 +59,9 @@ class ImageAnalyzer:
         brightness = np.mean(gray) / 255.0
 
         # Calculate color histogram (normalized)
-        hist_h = cv2.calcHist([hsv], [0], None, [32], [0, 180]).flatten()
-        hist_s = cv2.calcHist([hsv], [1], None, [32], [0, 256]).flatten()
-        hist_v = cv2.calcHist([hsv], [2], None, [32], [0, 256]).flatten()
+        hist_h = cv2.calcHist([hsv], [0], None, [16], [0, 180]).flatten()
+        hist_s = cv2.calcHist([hsv], [1], None, [16], [0, 256]).flatten()
+        hist_v = cv2.calcHist([hsv], [2], None, [16], [0, 256]).flatten()
 
         # Normalize histograms
         hist_h = hist_h / (hist_h.sum() + 1e-7)
@@ -162,7 +180,7 @@ def image_to_base64(image):
     return base64.b64encode(buffer).decode('utf-8')
 
 
-def send_to_gemini(image, prompt="Describe what you see in this image. Focus on the environment, objects, and any notable details."):
+def send_to_gemini(image):
     """Send image to Gemini API for analysis."""
     try:
         # Convert image to bytes
@@ -176,11 +194,23 @@ def send_to_gemini(image, prompt="Describe what you see in this image. Focus on 
         }
 
         # Send to Gemini
-        response = model.generate_content([prompt, image_part])
+        response = model.generate_content([GEMINI_PROMPT, image_part])
         return response.text
     except Exception as e:
         print(f"Error sending to Gemini: {e}")
         return None
+
+
+def get_gemini_response(timestamp, image):
+    response = send_to_gemini(image)
+
+    if response:
+        print(f"[{timestamp}] Gemini Response:")
+        print("-" * 30)
+        print(response[:500] + "..." if len(response) > 500 else response)
+        print("-" * 30)
+    else:
+        print(f"[{timestamp}] Failed to get response from Gemini")
 
 
 def main():
@@ -218,19 +248,10 @@ def main():
 
             # Process image and check if we should send to API
             should_send, reason = analyzer.process_image(image)
-
             if should_send:
                 print(f"[{timestamp}] Frame {frame_count}: Sending to Gemini ({reason})...")
+                threading.Thread(target=get_gemini_response(timestamp, image), daemon=True)
 
-                response = send_to_gemini(image)
-
-                if response:
-                    print(f"[{timestamp}] Gemini Response:")
-                    print("-" * 30)
-                    print(response[:500] + "..." if len(response) > 500 else response)
-                    print("-" * 30)
-                else:
-                    print(f"[{timestamp}] Failed to get response from Gemini")
             else:
                 # Print status every 5 frames
                 if frame_count % 5 == 0:
