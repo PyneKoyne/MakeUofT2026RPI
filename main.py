@@ -129,6 +129,7 @@ def process_serial_data():
             # Adjust instruments based on GSR value
             try:
                 gsr_value = int(serial_line["gsr"])
+                print(gsr_value)
                 if gsr_value < 15:
                     change_num_instruments(1)
                 elif gsr_value < 30:
