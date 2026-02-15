@@ -6,6 +6,8 @@ from queue import Queue
 # Serial data queue (thread-safe)
 serial_queue = Queue()
 
+serial_counter = 0
+
 def read_serial_data():
     """Continuously read data from ESP32 and put it in the queue."""
     ser = None
@@ -19,7 +21,11 @@ def read_serial_data():
                 line = json.loads(ser.readline().decode('utf-8').rstrip())
                 if line:
                     serial_queue.put(line)
-                    print(f"[GPIO] Received: {line}")
+                    global serial_counter
+                    serial_counter += 1
+                    if serial_counter > 10:
+                        print(f"[GPIO] Received: {line}")
+                        serial_counter = 0
 
     except Exception as e:
         print(f"Serial read error: {e}")

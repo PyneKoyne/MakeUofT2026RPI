@@ -13,6 +13,8 @@ from gpio_in import serial_queue, start_serial_thread
 # Create a Socket.IO client
 sio = socketio.Client()
 
+console_counter = 1
+
 # Server URL
 SERVER_URL = "https://conanima.pynekoyne.com"
 SOCKET_PATH = "/"
@@ -169,7 +171,12 @@ def send_data_thread():
         try:
             if sio.connected:
                 packet = get_data_packet()
-                print(f"[API] Packet: {str(json.dumps(packet))}")
+                global console_counter
+                console_counter += 1
+                if console_counter > 10:
+                    print(f"[API] Packet: {str(json.dumps(packet))}")
+                    console_counter = 0
+
                 sio.emit("receiveBioPacket", str(json.dumps(packet)))
             time.sleep(interval)
         except Exception as e:
