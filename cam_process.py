@@ -14,8 +14,8 @@ import threading
 load_dotenv()
 
 # Configuration
-CAPTURE_INTERVAL = 1.0  # Capture every 1 second
-MIN_SEND_INTERVAL = 10.0  # Minimum 10 seconds between API calls
+CAPTURE_INTERVAL = 0.5  # Capture every 1 second
+MIN_SEND_INTERVAL = 15.0  # Minimum 10 seconds between API calls
 STABILITY_WINDOW = 3  # Number of stable frames required
 CHANGE_THRESHOLD = 0.15  # 15% change threshold for detecting environment change
 STABILITY_THRESHOLD = 0.05  # 5% threshold for considering scene "stable"
@@ -29,13 +29,14 @@ The JSON must follow this structure:
   "tempo": "number (BPM range)",
   "instruments": ["array of 3-5 specific instruments"],
   "mood": "string (e.g., 'Sophisticated', 'Cozy', 'Energetic')",
-  "visual_reasoning": "A brief explanation of why the lighting, textures, or architecture in the photo led to this musical choice."
+  "visual_reasoning": "A brief (max 50 characters) explanation of why the lighting, textures, or architecture in the photo led to this musical choice."
 }
 
 Base your analysis on:
 1. Lighting: (e.g., Warm/dim vs. Bright/clinical)
 2. Textures: (e.g., Soft fabrics vs. Hard concrete/glass)
-3. Space: (e.g., Intimate/cramped vs. Vast/echoey)"""
+3. Space: (e.g., Intimate/cramped vs. Vast/echoey)
+4. Activities (e.g. Sports, Studying, Watching Television, etc...)"""
 
 # Initialize Gemini
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -253,10 +254,8 @@ def main():
                 threading.Thread(target=get_gemini_response(timestamp, image), daemon=True)
 
             else:
-                # Print status every 5 frames
-                if frame_count % 5 == 0:
-                    status = "change detected, waiting for stability" if analyzer.change_detected else "monitoring"
-                    print(f"[{timestamp}] Frame {frame_count}: {status}")
+                status = "change detected, waiting for stability" if analyzer.change_detected else "monitoring"
+                print(f"[{timestamp}] Frame {frame_count}: {status}")
 
             # Wait for next capture
             time.sleep(CAPTURE_INTERVAL)
