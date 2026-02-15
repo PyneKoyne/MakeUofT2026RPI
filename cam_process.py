@@ -10,15 +10,17 @@ from picamera2 import Picamera2
 import cv2
 import google.generativeai as genai
 import threading
+from queue import Queue
 
 load_dotenv()
+image_queue = Queue()
 
 # Configuration
 CAPTURE_INTERVAL = 0.4  # Capture every 1 second
 MIN_SEND_INTERVAL = 15.0  # Minimum 10 seconds between API calls
 STABILITY_WINDOW = 3  # Number of stable frames required
 CHANGE_THRESHOLD = 0.3  # 15% change threshold for detecting environment change
-STABILITY_THRESHOLD = 0.1  # 5% threshold for considering scene "stable"
+STABILITY_THRESHOLD = 0.04  # 5% threshold for considering scene "stable"
 GEMINI_PROMPT = """Analyze the provided image of this environment. Your task is to act as a world-class music producer and interior designer to determine the perfect musical atmosphere for this specific space.
 
 You must respond ONLY with a valid JSON object. Do not include any conversational filler, markdown code blocks (unless requested), or explanations outside of the JSON.
@@ -41,6 +43,7 @@ Base your analysis on:
 # Initialize Gemini
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-2.5-flash')
+
 
 class ImageAnalyzer:
     def __init__(self):
@@ -181,19 +184,9 @@ def image_to_base64(image):
     return base64.b64encode(buffer).decode('utf-8')
 
 
-def send_to_gemini(image):
+def send_to_gemini(image_part):
     """Send image to Gemini API for analysis."""
     try:
-        # Convert image to bytes
-        _, buffer = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 85])
-        image_bytes = buffer.tobytes()
-
-        # Create image part for Gemini
-        image_part = {
-            "mime_type": "image/jpeg",
-            "data": image_bytes
-        }
-
         # Send to Gemini
         response = model.generate_content([GEMINI_PROMPT, image_part])
         return response.text
@@ -202,7 +195,9 @@ def send_to_gemini(image):
         return None
 
 
-def get_gemini_response(timestamp, image):
+def get_gemini_response():
+    image = image_queue.get()
+    timestamp = datetime.now().strftime("%H:%M:%S")
     response = send_to_gemini(image)
 
     if response:
@@ -251,7 +246,17 @@ def main():
             should_send, reason = analyzer.process_image(image)
             if should_send:
                 print(f"[{timestamp}] Frame {frame_count}: Sending to Gemini ({reason})...")
-                response_thread = threading.Thread(target=get_gemini_response(timestamp, image), daemon=True)
+                # Convert image to bytes
+                _, buffer = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                image_bytes = buffer.tobytes()
+
+                # Create image part for Gemini
+                image_part = {
+                    "mime_type": "image/jpeg",
+                    "data": image_bytes
+                }
+                image_queue.put(image_part)
+                response_thread = threading.Thread(target=get_gemini_response, daemon=True)
                 response_thread.start()
             else:
                 status = "change detected, waiting for stability" if analyzer.change_detected else "monitoring"
