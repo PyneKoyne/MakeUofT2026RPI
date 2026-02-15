@@ -141,6 +141,7 @@ def process_serial_data():
 def get_data_packet():
     """Generate a JSON data packet to send."""
     with data_lock:
+        print(current_sensor_data)
         sensor_data = current_sensor_data.copy()
 
     return {
