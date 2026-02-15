@@ -1,3 +1,4 @@
+import json
 import time
 import os
 from dotenv import load_dotenv
@@ -230,9 +231,9 @@ def get_gemini_response():
         if gemini_response_queue is not None:
             response_data = {
                 "timestamp": datetime.now().isoformat(),
-                "response": response
+                "response": json.loads(response)
             }
-            gemini_response_queue.put(response_data)
+            gemini_response_queue.put(response)
             print(f"[{timestamp}] Response added to emission queue")
     else:
         print(f"[{timestamp}] Failed to get response from Gemini")
