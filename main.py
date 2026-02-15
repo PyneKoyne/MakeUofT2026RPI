@@ -111,6 +111,7 @@ def process_serial_data():
         try:
             # Non-blocking read from serial queue
             serial_line = serial_queue.get(timeout=1)
+            print(str(serial_line))
 
             # Parse serial data (adjust parsing based on your ESP32 output format)
             try:
@@ -160,7 +161,6 @@ def send_data_thread():
     while True:
         try:
             if sio.connected:
-                print("Send_Data_Thread")
                 packet = get_data_packet()
                 print(f"[API] Packet: {str(json.dumps(packet))}")
                 sio.emit("data", str(json.dumps(packet)))
