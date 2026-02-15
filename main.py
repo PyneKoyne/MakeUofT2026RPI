@@ -132,6 +132,7 @@ def process_serial_data():
             # Adjust instruments based on GSR value
             try:
                 gsr_value = int(serial_line["gsr"])
+                old_value = shared_num_instruments.value
                 if gsr_value < 15:
                     shared_num_instruments.value = 1
                 elif gsr_value < 30:
@@ -142,7 +143,8 @@ def process_serial_data():
                     shared_num_instruments.value = 5
                 else:
                     shared_num_instruments.value = 6
-                print(f"[SENSOR] GSR={gsr_value}, num_instruments={shared_num_instruments.value}")
+                if old_value != shared_num_instruments.value:
+                    print(f"[SENSOR] GSR={gsr_value}, num_instruments changed: {old_value} -> {shared_num_instruments.value}")
             except (ValueError, IndexError, KeyError) as e:
                 print(f"[SENSOR] Error adjusting instruments: {e}")
 

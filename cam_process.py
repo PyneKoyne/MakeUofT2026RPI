@@ -40,7 +40,10 @@ def get_num_instruments():
     """Get the current number of instruments from shared value or local fallback."""
     global num_instruments_shared, num_instruments_local
     if num_instruments_shared is not None:
-        return num_instruments_shared.value
+        val = num_instruments_shared.value
+        print(f"[CAM] get_num_instruments() from SHARED: {val}")
+        return val
+    print(f"[CAM] get_num_instruments() from LOCAL fallback: {num_instruments_local}")
     return num_instruments_local
 
 def change_num_instruments(num):
@@ -196,6 +199,11 @@ def image_to_base64(image):
 
 def send_to_gemini(image_part):
     """Send image to Gemini API for analysis."""
+    global num_instruments_shared
+    print(f"[CAM] send_to_gemini() - num_instruments_shared is: {num_instruments_shared}")
+    if num_instruments_shared is not None:
+        print(f"[CAM] send_to_gemini() - shared value raw: {num_instruments_shared.value}")
+
     num_instruments = get_num_instruments()
 
     print("NUM_INSTRUMENTS", num_instruments)
@@ -263,6 +271,10 @@ def main(response_queue=None, shared_num_instruments=None):
     gemini_response_queue = response_queue
     num_instruments_shared = shared_num_instruments
 
+    print(f"[CAM] main() started with shared_num_instruments={shared_num_instruments}")
+    if shared_num_instruments is not None:
+        print(f"[CAM] Initial shared value: {shared_num_instruments.value}")
+
     print("Initializing camera...")
 
     # Initialize PiCamera2
@@ -287,11 +299,17 @@ def main(response_queue=None, shared_num_instruments=None):
     print("-" * 50)
 
     try:
+        loop_count = 0
         while True:
             # Capture image
             image = picam2.capture_array()
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
             frame_count += 1
+            loop_count += 1
+
+            # Periodic debug: show current shared value every 10 loops
+            if loop_count % 10 == 0 and num_instruments_shared is not None:
+                print(f"[CAM] Loop {loop_count}: shared_num_instruments.value = {num_instruments_shared.value}")
 
             timestamp = datetime.now().strftime("%H:%M:%S")
 
