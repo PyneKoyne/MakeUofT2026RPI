@@ -159,8 +159,8 @@ def send_data_thread():
         try:
             if sio.connected:
                 packet = get_data_packet()
+                print(f"[API] Packet: {str(json.dumps(packet))}")
                 sio.emit("data", str(json.dumps(packet)))
-                print(f"[API] Sent: {str(json.dumps(packet))}")
             time.sleep(interval)
         except Exception as e:
             print(f"[API] Error sending data: {e}")
