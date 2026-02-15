@@ -179,15 +179,15 @@ def send_to_gemini(image_part):
     GEMINI_PROMPT = """Analyze the provided image of this environment. Your task is to act as a world-class music producer and interior designer to determine the perfect musical atmosphere for this specific space.
 
     Here are the Instruments you have to work with:
-        - Percussion: "808 Hip Hop Beat", "Bongos", "Drumline", "Funk Drums", "Glockenspiel", "Marimba", "Nuclear Explosion", "Steel Drum", "Timpani"
+        - Percussion: "808 Hip Hop Beat", "Bongos", "Drumline", "Drum set", "Explosions", "Steel Drum", "Timpani"
         - Bass: "Bass Clarinet", "Cello", "Didgeridoo", "Tuba", "Upright Bass"
         - Harmony: "Accordion", "Dirty Synths", "Electric Guitar", "Electric Piano", "Flamenco Guitar", "Guitar", "Harmonica", "Harp", "Harpsichord", "Moog Oscillations", "Smooth Pianos", "Spacey Synths", "Synth Pads", "Viola Ensemble", "Warm Acoustic Guitar"
-        - Melody: "Alto Saxophone", "Bagpipes", "Clarinet", "Flute", "French Horn", "Piccolo", "Trombone", "Trumpet", "Violin", "Piano", "Whistling"
+        - Melody: "Alto Saxophone", "Bagpipes", "Clarinet", "Flute", "French Horn", "Piccolo", "Trombone", "Trumpet", "Violin", "Piano", "Whistling", "Glockenspiel", "Marimba",
 
     And here are the genres:
         - Low Intensity: "Lo-Fi", "Hip Hop", "Bossa Nova", "Cool Jazz", "Indie Folk"
         - Medium Genres = "Classic Rock", "Disco Funk", "Deep House", "Indie Pop", "Jazz"
-        - High Intensity = "EDM", "Drum & Bass", "Techno", "Trap Beat", "Electro Swing"
+        - High Intensity = "EDM", "Drum & Bass", "Techno", "Trap", "Electro Swing"
     
     You MUST pick at least ONE PERCUSSION instrument and ONE MELODY instrument. You must also pick ONE genre.
     
@@ -195,13 +195,12 @@ def send_to_gemini(image_part):
     
     The JSON must follow this structure:
     {
-      "genre": "string (e.g., 'Lo-fi Jazz', 'Industrial Techno', 'Ambient Neo-Classical')",
-      "instruments": ["array of """ + str(num_instruments) + "-" + str(num_instruments + 2) + """ specific instruments"],
-      "visual_reasoning": "A brief (max 50 characters) explanation of why the lighting, textures, or architecture in the photo led to this musical choice."
+      "genre": "string (e.g., 'Lo-fi', 'Techno', 'Electro Swing')",
+      "instruments": ["array of """ + str(num_instruments) + "-" + str(num_instruments + 1) + """ specific instruments"],
     }
 
     Base your analysis on:
-    1. Lighting: (e.g., Warm/dim vs. Bright/clinical)
+    1. Lighting: (e.g., Warm/dim vs. Bright/clinical) Note that the camera is naturally blue
     2. Textures: (e.g., Soft fabrics vs. Hard concrete/glass)
     3. Space: (e.g., Intimate/cramped vs. Vast/echoey)
     4. Activities (e.g. Sports, Studying, Watching Television, etc...)"""

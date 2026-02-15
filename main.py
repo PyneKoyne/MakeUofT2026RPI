@@ -225,48 +225,50 @@ def cleanup():
 
 def main():
     try:
-        print(f"[MAIN] Starting concurrent data acquisition and transmission...")
-        print(f"[MAIN] Connecting to {SERVER_URL}...")
-
-        # Start serial reading thread
-        start_serial_thread()
-        time.sleep(0.5)
-
-        # Connect to the API server
-        sio.connect(
-            SERVER_URL,
-            wait_timeout=10,
-            namespaces = ['/']
-        )
-
-        # Start sensor data processing thread
-        sensor_thread = threading.Thread(target=process_serial_data, daemon=True)
-        sensor_thread.start()
-        print("[MAIN] Sensor processing thread started")
-
-        # Start data sending thread
-        sender_thread = threading.Thread(target=send_data_thread, daemon=True)
-        sender_thread.start()
-        print("[MAIN] Data sender thread started")
-
-        # Start Gemini response emitter thread
-        gemini_emitter_thread = threading.Thread(target=gemini_response_emitter, daemon=True)
-        gemini_emitter_thread.start()
-        print("[MAIN] Gemini response emitter thread started")
-
-        # Keep the main thread alive
-        print("[MAIN] All threads running. Press Ctrl+C to shutdown...")
-        print("[MAIN] Listening for 'start' and 'stop' commands from server...")
         while True:
-            time.sleep(1)
+            try:
+                print(f"[MAIN] Starting concurrent data acquisition and transmission...")
+                print(f"[MAIN] Connecting to {SERVER_URL}...")
+
+                # Start serial reading thread
+                start_serial_thread()
+                time.sleep(0.5)
+
+                # Connect to the API server
+                sio.connect(
+                    SERVER_URL,
+                    wait_timeout=10,
+                    namespaces = ['/']
+                )
+
+                # Start sensor data processing thread
+                sensor_thread = threading.Thread(target=process_serial_data, daemon=True)
+                sensor_thread.start()
+                print("[MAIN] Sensor processing thread started")
+
+                # Start data sending thread
+                sender_thread = threading.Thread(target=send_data_thread, daemon=True)
+                sender_thread.start()
+                print("[MAIN] Data sender thread started")
+
+                # Start Gemini response emitter thread
+                gemini_emitter_thread = threading.Thread(target=gemini_response_emitter, daemon=True)
+                gemini_emitter_thread.start()
+                print("[MAIN] Gemini response emitter thread started")
+
+                # Keep the main thread alive
+                print("[MAIN] All threads running. Press Ctrl+C to shutdown...")
+                print("[MAIN] Listening for 'start' and 'stop' commands from server...")
+                while True:
+                    time.sleep(1)
+            except Exception as e:
+                print(f"[MAIN] Error: {e}")
+            finally:
+                cleanup()
+                print("[MAIN] Cleanup complete")
 
     except KeyboardInterrupt:
         print("\n[MAIN] Shutting down...")
-    except Exception as e:
-        print(f"[MAIN] Error: {e}")
-    finally:
-        cleanup()
-        print("[MAIN] Cleanup complete")
 
 if __name__ == "__main__":
     main()
