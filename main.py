@@ -4,11 +4,9 @@ import threading
 import re
 from datetime import datetime
 from queue import Empty
-import subprocess
-import signal
-import os
+from multiprocessing import Process, Queue as MPQueue
 
-from cam_process import change_num_instruments
+from cam_process import change_num_instruments, main as camera_main
 # Import the serial queue from gpio_in
 from gpio_in import serial_queue, start_serial_thread
 
@@ -31,6 +29,9 @@ current_sensor_data = {
 camera_lock = threading.Lock()
 camera_process = None
 camera_running = False
+
+# Queue for receiving Gemini responses from camera process
+gemini_response_queue = MPQueue()
 
 @sio.event
 def connect():
@@ -57,14 +58,13 @@ def on_start(data=None):
             return
 
         try:
-            # Start the camera process
-            camera_process = subprocess.Popen(
-                ['python3', 'cam_process.py'],
-                cwd=os.path.dirname(os.path.abspath(__file__)),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                preexec_fn=os.setsid  # Create new process group for clean termination
+            # Start the camera process using multiprocessing
+            camera_process = Process(
+                target=camera_main,
+                args=(gemini_response_queue,),
+                daemon=True
             )
+            camera_process.start()
             camera_running = True
             print(f"[CAMERA] Camera script started (PID: {camera_process.pid})")
             sio.emit('camera_status', {'status': 'started', 'pid': camera_process.pid})
@@ -85,17 +85,17 @@ def on_stop(data=None):
             return
 
         try:
-            # Terminate the process group
-            os.killpg(os.getpgid(camera_process.pid), signal.SIGTERM)
-            camera_process.wait(timeout=5)
-            print("[CAMERA] Camera script stopped gracefully")
-            sio.emit('camera_status', {'status': 'stopped'})
-        except subprocess.TimeoutExpired:
-            # Force kill if graceful shutdown fails
-            os.killpg(os.getpgid(camera_process.pid), signal.SIGKILL)
-            camera_process.wait()
-            print("[CAMERA] Camera script force killed")
-            sio.emit('camera_status', {'status': 'force_stopped'})
+            # Terminate the process
+            camera_process.terminate()
+            camera_process.join(timeout=5)
+            if camera_process.is_alive():
+                camera_process.kill()
+                camera_process.join()
+                print("[CAMERA] Camera script force killed")
+                sio.emit('camera_status', {'status': 'force_stopped'})
+            else:
+                print("[CAMERA] Camera script stopped gracefully")
+                sio.emit('camera_status', {'status': 'stopped'})
         except Exception as e:
             print(f"[CAMERA] Error stopping camera: {e}")
             sio.emit('camera_status', {'status': 'error', 'message': str(e)})
@@ -181,6 +181,25 @@ def send_data_thread():
             print(f"[API] Error sending data: {e}")
             time.sleep(interval)
 
+def gemini_response_emitter():
+    """Thread that monitors Gemini response queue and emits to backend."""
+    while True:
+        try:
+            # Check for Gemini responses (non-blocking with timeout)
+            try:
+                response_data = gemini_response_queue.get(timeout=0.5)
+                if sio.connected:
+                    sio.emit('gemini_response', response_data)
+                    print(f"[API] Emitted Gemini response to backend")
+                else:
+                    print(f"[API] Not connected, couldn't emit Gemini response")
+            except:
+                # Queue empty, continue
+                pass
+        except Exception as e:
+            print(f"[API] Error emitting Gemini response: {e}")
+            time.sleep(0.1)
+
 def cleanup():
     """Clean up resources on shutdown."""
     global camera_process, camera_running
@@ -189,13 +208,13 @@ def cleanup():
     with camera_lock:
         if camera_running and camera_process is not None:
             try:
-                os.killpg(os.getpgid(camera_process.pid), signal.SIGTERM)
-                camera_process.wait(timeout=3)
+                camera_process.terminate()
+                camera_process.join(timeout=3)
+                if camera_process.is_alive():
+                    camera_process.kill()
+                    camera_process.join()
             except:
-                try:
-                    os.killpg(os.getpgid(camera_process.pid), signal.SIGKILL)
-                except:
-                    pass
+                pass
             camera_process = None
             camera_running = False
 
@@ -229,6 +248,11 @@ def main():
             # sender_thread = threading.Thread(target=send_data_thread, daemon=True)
             # sender_thread.start()
             # print("[MAIN] Data sender thread started")
+
+            # Start Gemini response emitter thread
+            gemini_emitter_thread = threading.Thread(target=gemini_response_emitter, daemon=True)
+            gemini_emitter_thread.start()
+            print("[MAIN] Gemini response emitter thread started")
 
             # Keep the main thread alive
             print("[MAIN] All threads running. Press Ctrl+C to shutdown...")

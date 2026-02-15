@@ -11,16 +11,20 @@ import cv2
 import google.generativeai as genai
 import threading
 from queue import Queue
+from multiprocessing import Queue as MPQueue
 
 load_dotenv()
 image_queue = Queue()
+
+# Queue for Gemini responses to be sent to main process
+gemini_response_queue = None  # Will be set by main.py when running as subprocess
 
 # Configuration
 CAPTURE_INTERVAL = 0.4  # Capture every 1 second
 MIN_SEND_INTERVAL = 15.0  # Minimum 10 seconds between API calls
 STABILITY_WINDOW = 3  # Number of stable frames required
 CHANGE_THRESHOLD = 0.3  # 15% change threshold for detecting environment change
-STABILITY_THRESHOLD = 0.03  # 5% threshold for considering scene "stable"
+STABILITY_THRESHOLD = 0.025  # 5% threshold for considering scene "stable"
 num_instruments = 3
 
 # Initialize Gemini
@@ -181,9 +185,9 @@ def send_to_gemini(image_part):
         - Melody: "Alto Saxophone", "Bagpipes", "Clarinet", "Flute", "French Horn", "Piccolo", "Trombone", "Trumpet", "Violin"
 
     And here are the genres:
-        - Low Intensity: "Lo-Fi Hip Hop", "Bossa Nova", "Chillout", "Indie Folk"
-        - Medium Genres = "Classic Rock", "Disco Funk", "Deep House", "Indie Pop"
-        - High Intensity = "EDM", "Drum & Bass", "Techno", "Trap Beat"
+        - Low Intensity: "Lo-Fi", "Hip Hop", "Bossa Nova", "Cool Jazz", "Indie Folk"
+        - Medium Genres = "Classic Rock", "Disco Funk", "Deep House", "Indie Pop", "Jazz"
+        - High Intensity = "EDM", "Drum & Bass", "Techno", "Trap Beat", "Electro Swing"
 
     You must respond ONLY with a valid JSON object with VALID instruments and genres. Do not include any conversational filler, or explanations outside of the JSON.
 
@@ -210,6 +214,7 @@ def send_to_gemini(image_part):
 
 
 def get_gemini_response():
+    global gemini_response_queue
     image = image_queue.get()
     timestamp = datetime.now().strftime("%H:%M:%S")
     response = send_to_gemini(image)
@@ -219,11 +224,23 @@ def get_gemini_response():
         print("-" * 30)
         print(response[:500] + "..." if len(response) > 500 else response)
         print("-" * 30)
+
+        # Add response to queue for socket.io emission
+        if gemini_response_queue is not None:
+            response_data = {
+                "timestamp": datetime.now().isoformat(),
+                "response": response
+            }
+            gemini_response_queue.put(response_data)
+            print(f"[{timestamp}] Response added to emission queue")
     else:
         print(f"[{timestamp}] Failed to get response from Gemini")
 
 
-def main():
+def main(response_queue=None):
+    global gemini_response_queue
+    gemini_response_queue = response_queue
+
     print("Initializing camera...")
 
     # Initialize PiCamera2
@@ -284,7 +301,6 @@ def main():
     finally:
         picam2.stop()
         print("Camera stopped.")
-
 
 if __name__ == "__main__":
     main()
