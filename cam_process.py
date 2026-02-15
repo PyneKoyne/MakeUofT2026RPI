@@ -181,16 +181,18 @@ def send_to_gemini(image_part):
     Here are the Instruments you have to work with:
         - Percussion: "808 Hip Hop Beat", "Bongos", "Drumline", "Funk Drums", "Glockenspiel", "Marimba", "Nuclear Explosion", "Steel Drum", "Timpani"
         - Bass: "Bass Clarinet", "Cello", "Didgeridoo", "Tuba", "Upright Bass"
-        - Harmony: "Accordion", "Dirty Synths", "Electric Guitar", "Electric Piano", "Flamenco Guitar", "Guitar", "Harmonica", "Harp", "Harpsichord", "Moog Oscillations", "Ragtime Piano", "Smooth Pianos", "Spacey Synths", "Synth Pads", "Viola Ensemble", "Warm Acoustic Guitar"
-        - Melody: "Alto Saxophone", "Bagpipes", "Clarinet", "Flute", "French Horn", "Piccolo", "Trombone", "Trumpet", "Violin"
+        - Harmony: "Accordion", "Dirty Synths", "Electric Guitar", "Electric Piano", "Flamenco Guitar", "Guitar", "Harmonica", "Harp", "Harpsichord", "Moog Oscillations", "Smooth Pianos", "Spacey Synths", "Synth Pads", "Viola Ensemble", "Warm Acoustic Guitar"
+        - Melody: "Alto Saxophone", "Bagpipes", "Clarinet", "Flute", "French Horn", "Piccolo", "Trombone", "Trumpet", "Violin", "Piano", "Whistling"
 
     And here are the genres:
         - Low Intensity: "Lo-Fi", "Hip Hop", "Bossa Nova", "Cool Jazz", "Indie Folk"
         - Medium Genres = "Classic Rock", "Disco Funk", "Deep House", "Indie Pop", "Jazz"
         - High Intensity = "EDM", "Drum & Bass", "Techno", "Trap Beat", "Electro Swing"
-
+    
+    You MUST pick at least ONE PERCUSSION instrument and ONE MELODY instrument. You must also pick ONE genre.
+    
     You must respond ONLY with a valid JSON object with VALID instruments and genres. Do not include any conversational filler, or explanations outside of the JSON.
-
+    
     The JSON must follow this structure:
     {
       "genre": "string (e.g., 'Lo-fi Jazz', 'Industrial Techno', 'Ambient Neo-Classical')",
