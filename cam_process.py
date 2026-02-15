@@ -12,7 +12,8 @@ import cv2
 import google.generativeai as genai
 import threading
 from queue import Queue
-from multiprocessing import Queue as MPQueue
+from multiprocessing import Queue as MPQueue, Value
+import ctypes
 
 load_dotenv()
 image_queue = Queue()
@@ -26,15 +27,33 @@ MIN_SEND_INTERVAL = 15.0  # Minimum 10 seconds between API calls
 STABILITY_WINDOW = 3  # Number of stable frames required
 CHANGE_THRESHOLD = 0.3  # 15% change threshold for detecting environment change
 STABILITY_THRESHOLD = 0.025  # 5% threshold for considering scene "stable"
-num_instruments = 3
+
+# Shared value for num_instruments (will be set by main.py)
+num_instruments_shared = None
+num_instruments_local = 3  # Fallback for standalone mode
 
 # Initialize Gemini
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-2.5-flash')
 
+def get_num_instruments():
+    """Get the current number of instruments from shared value or local fallback."""
+    global num_instruments_shared, num_instruments_local
+    if num_instruments_shared is not None:
+        return num_instruments_shared.value
+    return num_instruments_local
+
 def change_num_instruments(num):
-    global num_instruments
-    num_instruments = num
+    """Change the number of instruments (works across processes if shared value is set)."""
+    global num_instruments_shared, num_instruments_local
+    if num_instruments_shared is not None:
+        num_instruments_shared.value = num
+    else:
+        num_instruments_local = num
+
+def create_shared_num_instruments(initial_value=3):
+    """Create a shared Value for num_instruments to be passed to subprocess."""
+    return Value(ctypes.c_int, initial_value)
 
 class ImageAnalyzer:
     def __init__(self):
@@ -177,7 +196,7 @@ def image_to_base64(image):
 
 def send_to_gemini(image_part):
     """Send image to Gemini API for analysis."""
-    global num_instruments
+    num_instruments = get_num_instruments()
 
     print("NUM_INSTRUMENTS", num_instruments)
     GEMINI_PROMPT = """Analyze the provided image of this environment. Your task is to act as a world-class music producer and interior designer to determine the perfect musical atmosphere for this specific space.
@@ -239,9 +258,10 @@ def get_gemini_response():
         print(f"[{timestamp}] Failed to get response from Gemini")
 
 
-def main(response_queue=None):
-    global gemini_response_queue
+def main(response_queue=None, shared_num_instruments=None):
+    global gemini_response_queue, num_instruments_shared
     gemini_response_queue = response_queue
+    num_instruments_shared = shared_num_instruments
 
     print("Initializing camera...")
 

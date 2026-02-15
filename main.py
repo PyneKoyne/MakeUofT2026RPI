@@ -6,7 +6,7 @@ import threading
 from queue import Empty
 from multiprocessing import Process, Queue as MPQueue
 
-from cam_process import change_num_instruments, main as camera_main
+from cam_process import change_num_instruments, main as camera_main, create_shared_num_instruments
 # Import the serial queue from gpio_in
 from gpio_in import serial_queue, start_serial_thread
 
@@ -31,6 +31,9 @@ current_sensor_data = {
 camera_lock = threading.Lock()
 camera_process = None
 camera_running = False
+
+# Shared value for num_instruments (shared between main process and camera subprocess)
+shared_num_instruments = create_shared_num_instruments(3)
 
 # Queue for receiving Gemini responses from camera process
 gemini_response_queue = MPQueue()
@@ -63,7 +66,7 @@ def on_start(data=None):
             # Start the camera process using multiprocessing
             camera_process = Process(
                 target=camera_main,
-                args=(gemini_response_queue,),
+                args=(gemini_response_queue, shared_num_instruments),
                 daemon=True
             )
             camera_process.start()
@@ -130,16 +133,17 @@ def process_serial_data():
             try:
                 gsr_value = int(serial_line["gsr"])
                 if gsr_value < 15:
-                    change_num_instruments(1)
+                    shared_num_instruments.value = 1
                 elif gsr_value < 30:
-                    change_num_instruments(2)
+                    shared_num_instruments.value = 2
                 elif gsr_value < 50:
-                    change_num_instruments(3)
+                    shared_num_instruments.value = 3
                 elif gsr_value < 85:
-                    change_num_instruments(5)
+                    shared_num_instruments.value = 5
                 else:
-                    change_num_instruments(6)
-            except (ValueError, IndexError) as e:
+                    shared_num_instruments.value = 6
+                print(f"[SENSOR] GSR={gsr_value}, num_instruments={shared_num_instruments.value}")
+            except (ValueError, IndexError, KeyError) as e:
                 print(f"[SENSOR] Error adjusting instruments: {e}")
 
         except Empty:
