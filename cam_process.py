@@ -177,6 +177,9 @@ def image_to_base64(image):
 
 def send_to_gemini(image_part):
     """Send image to Gemini API for analysis."""
+    global num_instruments
+
+    print("NUM_INSTRUMENTS", num_instruments)
     GEMINI_PROMPT = """Analyze the provided image of this environment. Your task is to act as a world-class music producer and interior designer to determine the perfect musical atmosphere for this specific space.
 
     Here are the Instruments you have to work with:
