@@ -23,7 +23,7 @@ gemini_response_queue = None  # Will be set by main.py when running as subproces
 
 # Configuration
 CAPTURE_INTERVAL = 0.4  # Capture every 1 second
-MIN_SEND_INTERVAL = 15.0  # Minimum 10 seconds between API calls
+MIN_SEND_INTERVAL = 12.0  # Minimum 10 seconds between API calls
 STABILITY_WINDOW = 3  # Number of stable frames required
 CHANGE_THRESHOLD = 0.3  # 15% change threshold for detecting environment change
 STABILITY_THRESHOLD = 0.025  # 5% threshold for considering scene "stable"

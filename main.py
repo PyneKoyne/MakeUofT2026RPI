@@ -133,9 +133,7 @@ def process_serial_data():
             try:
                 gsr_value = int(serial_line["gsr"])
                 old_value = shared_num_instruments.value
-                if gsr_value < 15:
-                    shared_num_instruments.value = 1
-                elif gsr_value < 30:
+                if gsr_value < 30:
                     shared_num_instruments.value = 2
                 elif gsr_value < 50:
                     shared_num_instruments.value = 3
