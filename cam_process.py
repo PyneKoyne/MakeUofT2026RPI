@@ -198,6 +198,7 @@ def send_to_gemini(image_part):
     {
       "genre": "string (e.g., 'Lo-fi', 'Techno', 'Electro Swing')",
       "instruments": ["array of """ + str(num_instruments) + "-" + str(num_instruments + 1) + """ specific instruments"],
+      "Explanation": "up to 50 char explanation of why these instruments were used",
     }
 
     Base your analysis on:
