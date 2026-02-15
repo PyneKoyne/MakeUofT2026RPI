@@ -1,3 +1,5 @@
+import json
+
 import socketio
 import time
 import threading
@@ -144,8 +146,6 @@ def get_data_packet():
         sensor_data = current_sensor_data.copy()
 
     return {
-        "timestamp": datetime.now().isoformat(),
-        "device": "raspberry_pi_zero_2",
         "data": {
             sensor_data
         }
@@ -159,7 +159,7 @@ def send_data_thread():
         try:
             if sio.connected:
                 packet = get_data_packet()
-                sio.emit("data", packet)
+                sio.emit("data", json.dumps(packet))
                 print(f"[API] Sent: {str(packet)}")
             time.sleep(interval)
         except Exception as e:
