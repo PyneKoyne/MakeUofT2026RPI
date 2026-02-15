@@ -229,10 +229,6 @@ def get_gemini_response():
 
         # Add response to queue for socket.io emission
         if gemini_response_queue is not None:
-            response_data = {
-                "timestamp": datetime.now().isoformat(),
-                "response": json.loads(response)
-            }
             gemini_response_queue.put(response)
             print(f"[{timestamp}] Response added to emission queue")
     else:
