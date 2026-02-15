@@ -14,7 +14,7 @@ from gpio_in import serial_queue, start_serial_thread
 sio = socketio.Client()
 
 # Server URL
-SERVER_URL = "https://api.pynekoyne.com"
+SERVER_URL = "https://conanima.pynekoyne.com"
 SOCKET_PATH = "/"
 
 # Shared data state (thread-safe with lock)
